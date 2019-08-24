@@ -26,6 +26,7 @@ import (
 	"github.com/containerd/typeurl"
 	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
 	runtimespec "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/selinux/go-selinux"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
@@ -79,6 +80,11 @@ func getRunPodSandboxTestData() (*runtime.PodSandboxConfig, *imagespec.ImageConf
 
 		assert.Contains(t, spec.Annotations, annotations.SandboxLogDir)
 		assert.EqualValues(t, spec.Annotations[annotations.SandboxLogDir], "test-log-directory")
+
+		if selinux.GetEnabled() {
+			assert.NotEqual(t, "", spec.Process.SelinuxLabel)
+			assert.NotEqual(t, "", spec.Linux.MountLabel)
+		}
 	}
 	return config, imageConfig, specCheck
 }
