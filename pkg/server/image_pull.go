@@ -351,7 +351,7 @@ func (c *criService) registryHosts(auth *runtime.AuthConfig) docker.RegistryHost
 				Host:         u.Host,
 				Scheme:       u.Scheme,
 				Path:         u.Path,
-				Capabilities: docker.HostCapabilityResolve | docker.HostCapabilityPull,
+				Capabilities: docker.HostCapabilityResolve | docker.HostCapabilityPull | docker.HostCapabilityPush,
 			})
 		}
 		return registries, nil
