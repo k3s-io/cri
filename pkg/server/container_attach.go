@@ -17,16 +17,15 @@ limitations under the License.
 package server
 
 import (
-	"io"
-
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/log"
+	cio "github.com/containerd/cri/pkg/server/io"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
+	"io"
 	"k8s.io/client-go/tools/remotecommand"
 	runtime "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
-
-	cio "github.com/containerd/cri/pkg/server/io"
 )
 
 // Attach prepares a streaming endpoint to attach to a running container, and returns the address.
@@ -36,7 +35,7 @@ func (c *criService) Attach(ctx context.Context, r *runtime.AttachRequest) (*run
 		return nil, errors.Wrap(err, "failed to find container in store")
 	}
 	state := cntr.Status.Get().State()
-	if state != runtime.ContainerState_CONTAINER_RUNNING {
+	if state != runtime.ContainerState_CONTAINER_RUNNING && state != runtime.ContainerState_CONTAINER_CREATED {
 		return nil, errors.Errorf("container is in %s state", criContainerStateToString(state))
 	}
 	return c.streamServer.GetAttach(r)
@@ -52,8 +51,38 @@ func (c *criService) attachContainer(ctx context.Context, id string, stdin io.Re
 	id = cntr.ID
 
 	state := cntr.Status.Get().State()
-	if state != runtime.ContainerState_CONTAINER_RUNNING {
+	if state != runtime.ContainerState_CONTAINER_RUNNING && state != runtime.ContainerState_CONTAINER_CREATED {
 		return errors.Errorf("container is in %s state", criContainerStateToString(state))
+	}
+
+	opts := cio.AttachOptions{
+		Stdin:     stdin,
+		Stdout:    stdout,
+		Stderr:    stderr,
+		Tty:       tty,
+		StdinOnce: cntr.Config.StdinOnce,
+		CloseStdin: func() error {
+			task, err := cntr.Container.Task(ctx, nil)
+			if err != nil {
+				return errors.Wrap(err, "failed to load task")
+			}
+			return task.CloseIO(ctx, containerd.WithStdinCloser)
+		},
+	}
+
+	eg := errgroup.Group{}
+	eg.Go(func() error {
+		cntr.IO.Attach(opts)
+		return nil
+	})
+
+	if state == runtime.ContainerState_CONTAINER_CREATED {
+		_, err := c.StartContainer(ctx, &runtime.StartContainerRequest{
+			ContainerId: cntr.ID,
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	task, err := cntr.Container.Task(ctx, nil)
@@ -66,17 +95,5 @@ func (c *criService) attachContainer(ctx context.Context, id string, stdin io.Re
 		}
 	})
 
-	opts := cio.AttachOptions{
-		Stdin:     stdin,
-		Stdout:    stdout,
-		Stderr:    stderr,
-		Tty:       tty,
-		StdinOnce: cntr.Config.StdinOnce,
-		CloseStdin: func() error {
-			return task.CloseIO(ctx, containerd.WithStdinCloser)
-		},
-	}
-	// TODO(random-liu): Figure out whether we need to support historical output.
-	cntr.IO.Attach(opts)
-	return nil
+	return eg.Wait()
 }
