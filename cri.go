@@ -18,6 +18,8 @@ package cri
 
 import (
 	"flag"
+	"github.com/containerd/containerd/remotes"
+	runtime "k8s.io/cri-api/pkg/apis/runtime/v1alpha2"
 	"path/filepath"
 
 	"github.com/containerd/containerd"
@@ -57,6 +59,12 @@ func init() {
 		InitFn: initCRIService,
 	})
 }
+
+type ResolverFactory interface {
+	 GetResolver(auth *runtime.AuthConfig) remotes.Resolver
+}
+
+var Resolver ResolverFactory
 
 func initCRIService(ic *plugin.InitContext) (interface{}, error) {
 	ic.Meta.Platforms = []imagespec.Platform{platforms.DefaultSpec()}
@@ -99,6 +107,8 @@ func initCRIService(ic *plugin.InitContext) (interface{}, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create CRI service")
 	}
+
+	Resolver = s.(ResolverFactory)
 
 	go func() {
 		if err := s.Run(); err != nil {
