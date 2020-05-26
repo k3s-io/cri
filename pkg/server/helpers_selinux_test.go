@@ -1,19 +1,19 @@
 // +build selinux
 
 /*
-Copyright 2017 The Kubernetes Authors.
+   Copyright The containerd Authors.
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+       http://www.apache.org/licenses/LICENSE-2.0
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
 */
 
 package server
@@ -96,8 +96,8 @@ func TestInitSelinuxOpts(t *testing.T) {
 
 func TestCheckSelinuxLevel(t *testing.T) {
 	for desc, test := range map[string]struct {
-		level     string
-		expectErr bool
+		level         string
+		expectNoMatch bool
 	}{
 		"s0": {
 			level: "s0",
@@ -127,29 +127,29 @@ func TestCheckSelinuxLevel(t *testing.T) {
 			level: "s0-s0:c0,c3.c6",
 		},
 		"s0,c0,c3": {
-			level:     "s0,c0,c3",
-			expectErr: true,
+			level:         "s0,c0,c3",
+			expectNoMatch: true,
 		},
 		"s0:c0.c3.c6": {
-			level:     "s0:c0.c3.c6",
-			expectErr: true,
+			level:         "s0:c0.c3.c6",
+			expectNoMatch: true,
 		},
 		"s0-s0,c0,c3": {
-			level:     "s0-s0,c0,c3",
-			expectErr: true,
+			level:         "s0-s0,c0,c3",
+			expectNoMatch: true,
 		},
 		"s0-s0:c0.c3.c6": {
-			level:     "s0-s0:c0.c3.c6",
-			expectErr: true,
+			level:         "s0-s0:c0.c3.c6",
+			expectNoMatch: true,
 		},
 		"s0-s0:c0,c3.c6.c8": {
-			level:     "s0-s0:c0,c3.c6.c8",
-			expectErr: true,
+			level:         "s0-s0:c0,c3.c6.c8",
+			expectNoMatch: true,
 		},
 	} {
 		t.Run(desc, func(t *testing.T) {
 			err := checkSelinuxLevel(test.level)
-			if test.expectErr {
+			if test.expectNoMatch {
 				assert.Error(t, err)
 			} else {
 				assert.NoError(t, err)
