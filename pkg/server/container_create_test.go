@@ -265,6 +265,12 @@ func TestContainerCapabilities(t *testing.T) {
 		containerConfig.Linux.SecurityContext.Capabilities = test.capability
 		spec, err := c.generateContainerSpec(testID, testSandboxID, testPid, containerConfig, sandboxConfig, imageConfig, nil, ociRuntime)
 		require.NoError(t, err)
+
+		if selinux.GetEnabled() {
+			assert.NotEqual(t, "", spec.Process.SelinuxLabel)
+			assert.NotEqual(t, "", spec.Linux.MountLabel)
+		}
+
 		specCheck(t, testID, testSandboxID, testPid, spec)
 		for _, include := range test.includes {
 			assert.Contains(t, spec.Process.Capabilities.Bounding, include)
