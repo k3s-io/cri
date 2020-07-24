@@ -18,20 +18,22 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-source $(dirname "${BASH_SOURCE[0]}")/utils.sh
-CNI_DIR=${DESTDIR}/opt/cni
-CNI_PKG=github.com/containernetworking/plugins
+source $(dirname "${BASH_SOURCE[0]}")/../utils.sh
+# WINCNI_BIN_DIR is the cni plugin directory
+WINCNI_BIN_DIR="${WINCNI_BIN_DIR:-"C:\\Program Files\\containerd\\cni\\bin"}"
+WINCNI_PKG=github.com/Microsoft/windows-container-networking
+WINCNI_VERSION=aa10a0b31e9f72937063436454def1760b858ee2
 
 # Create a temporary GOPATH for cni installation.
-GOPATH=$(mktemp -d /tmp/cri-install-cni.XXXX)
+GOPATH="$(mktemp -d /tmp/cri-install-cni.XXXX)"
 
 # Install cni
-from-vendor CNI github.com/containernetworking/plugins
-checkout_repo ${CNI_PKG} ${CNI_VERSION} ${CNI_REPO}
-cd ${GOPATH}/src/${CNI_PKG}
-FASTBUILD=true ./build.sh
-${SUDO} mkdir -p ${CNI_DIR}
-${SUDO} cp -r ./bin ${CNI_DIR}
+checkout_repo "${WINCNI_PKG}" "${WINCNI_VERSION}" "${WINCNI_PKG}"
+cd "${GOPATH}/src/${WINCNI_PKG}"
+make all
+install -D -m 755 "out/nat.exe" "${WINCNI_BIN_DIR}/nat.exe"
+install -D -m 755 "out/sdnbridge.exe" "${WINCNI_BIN_DIR}/sdnbridge.exe"
+install -D -m 755 "out/sdnoverlay.exe" "${WINCNI_BIN_DIR}/sdnoverlay.exe"
 
 # Clean the tmp GOPATH dir.
-rm -rf ${GOPATH}
+rm -rf "${GOPATH}"
