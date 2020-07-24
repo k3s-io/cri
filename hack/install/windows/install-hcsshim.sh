@@ -18,24 +18,20 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-source $(dirname "${BASH_SOURCE[0]}")/utils.sh
-RUNC_DIR=${DESTDIR%/}
-RUNC_PKG=github.com/opencontainers/runc
+source $(dirname "${BASH_SOURCE[0]}")/../utils.sh
+HCSSHIM_DIR="${HCSSHIM_DIR:-"C:\\Program Files\\Containerd"}"
+HCSSHIM_PKG=github.com/Microsoft/hcsshim
 
-# Create a temporary GOPATH for runc installation.
-GOPATH=$(mktemp -d /tmp/cri-install-runc.XXXX)
+# Create a temporary GOPATH for hcsshim installation.
+GOPATH="$(mktemp -d /tmp/cri-install-hcsshim.XXXX)"
 
-# Install runc
-from-vendor RUNC github.com/opencontainers/runc
-checkout_repo ${RUNC_PKG} ${RUNC_VERSION} ${RUNC_REPO}
-cd ${GOPATH}/src/${RUNC_PKG}
-make BUILDTAGS="$BUILDTAGS" VERSION=${RUNC_VERSION}
-${SUDO} PATH="${PATH}" make install -e DESTDIR=${RUNC_DIR}
-
-if type -p sestatus chcon >/dev/null 2>&1; then
-  ${SUDO} chcon -v -t container_runtime_exec_t "${RUNC_DIR}/usr/local/sbin/runc"
-fi
+# Install hcsshim
+from-vendor HCSSHIM "${HCSSHIM_PKG}"
+checkout_repo "${HCSSHIM_PKG}" "${HCSSHIM_VERSION}" "${HCSSHIM_REPO}"
+cd "${GOPATH}/src/${HCSSHIM_PKG}"
+go build "${HCSSHIM_PKG}/cmd/containerd-shim-runhcs-v1"
+install -D -m 755 containerd-shim-runhcs-v1.exe "${HCSSHIM_DIR}"/containerd-shim-runhcs-v1.exe
 
 # Clean the tmp GOPATH dir. Use sudo because runc build generates
 # some privileged files.
-${SUDO} rm -rf ${GOPATH}
+rm -rf ${GOPATH}

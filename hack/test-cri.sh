@@ -1,23 +1,25 @@
 #!/bin/bash
 
-# Copyright 2017 The Kubernetes Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+#   Copyright The containerd Authors.
+
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+
+#       http://www.apache.org/licenses/LICENSE-2.0
+
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
 
 set -o nounset
 set -o pipefail
 
+set -e
 source $(dirname "${BASH_SOURCE[0]}")/test-utils.sh
+set +e
 
 # FOCUS focuses the test to run.
 FOCUS=${FOCUS:-}
@@ -27,6 +29,8 @@ SKIP=${SKIP:-""}
 REPORT_DIR=${REPORT_DIR:-"/tmp/test-cri"}
 # RUNTIME is the runtime handler to use in the test.
 RUNTIME=${RUNTIME:-""}
+# SEED seeds ginkgo spec randomization.
+SEED=${SEED:-$(printf '%(%s)T' -1)} # the ginkgo cli will not parse an empty string value
 
 # Check GOPATH
 if [[ -z "${GOPATH}" ]]; then
@@ -61,7 +65,7 @@ mkdir -p ${REPORT_DIR}
 test_setup ${REPORT_DIR}
 
 # Run cri validation test
-sudo env PATH=${PATH} GOPATH=${GOPATH} ${CRITEST} --runtime-endpoint=${CONTAINERD_SOCK} --ginkgo.focus="${FOCUS}" --ginkgo.skip="${SKIP}" --parallel=8 --runtime-handler=${RUNTIME}
+sudo env PATH=${PATH} GOPATH=${GOPATH} ${CRITEST} --runtime-endpoint=${CONTAINERD_SOCK} --ginkgo.focus="${FOCUS}" --ginkgo.skip="${SKIP}" --ginkgo.seed="${SEED}" --parallel=8 --runtime-handler=${RUNTIME}
 test_exit_code=$?
 
 test_teardown

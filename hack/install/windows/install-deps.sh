@@ -14,22 +14,14 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-# Dependencies:
-# runc:
-# - libseccomp-dev(Ubuntu,Debian)/libseccomp-devel(Fedora, CentOS, RHEL). Note that
-# libseccomp in ubuntu <=trusty and debian <=jessie is not new enough, backport
-# is required.
-# containerd:
-# - btrfs-tools(Ubuntu,Debian)/btrfs-progs-devel(Fedora, CentOS, RHEL)
-
 set -o errexit
 set -o nounset
 set -o pipefail
 
 cd $(dirname "${BASH_SOURCE[0]}")
 
-# Install runc
-./install-runc.sh
+# Install hcsshim
+./install-hcsshim.sh
 
 # Install cni
 ./install-cni.sh
@@ -38,7 +30,18 @@ cd $(dirname "${BASH_SOURCE[0]}")
 ./install-cni-config.sh
 
 # Install containerd
-./install-containerd.sh
+NOSUDO=true \
+  BUILDTAGS="" \
+  CONTAINERD_DIR='C:\Program Files\Containerd' \
+  ../install-containerd.sh
+# Containerd makefile always installs into a "bin" directory.
+# Use slash instead of bach slash so that `*` can work.
+mv C:/'Program Files'/Containerd/bin/* 'C:\Program Files\Containerd\'
+rm -rf 'C:\Program Files\Containerd\bin'
 
 #Install critools
-./install-critools.sh
+NOSUDO=true \
+  CRITOOL_DIR='C:\Program Files\Containerd' \
+  CRICTL_RUNTIME_ENDPOINT="npipe:////./pipe/containerd-containerd" \
+  CRICTL_CONFIG_DIR="C:\\Users\\$(id -u -n)\\.crictl" \
+  ../install-critools.sh
