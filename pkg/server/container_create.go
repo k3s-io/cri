@@ -547,9 +547,10 @@ func (c *criService) generateContainerMounts(sandboxID string, config *runtime.C
 			sandboxDevShm = devShm
 		}
 		mounts = append(mounts, &runtime.Mount{
-			ContainerPath: devShm,
-			HostPath:      sandboxDevShm,
-			Readonly:      false,
+			ContainerPath:  devShm,
+			HostPath:       sandboxDevShm,
+			Readonly:       false,
+			SelinuxRelabel: true,
 		})
 	}
 	return mounts
