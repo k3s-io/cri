@@ -32,6 +32,7 @@ import (
 	"github.com/containerd/containerd/contrib/seccomp"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/oci"
+	"github.com/containerd/cri/pkg/cap"
 	imagespec "github.com/opencontainers/image-spec/specs-go/v1"
 	libcontainerconfigs "github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
@@ -185,6 +186,7 @@ func TestContainerCapabilities(t *testing.T) {
 	testSandboxID := "sandbox-id"
 	testContainerName := "container-name"
 	testPid := uint32(1234)
+	allCaps := cap.Known()
 	for desc, test := range map[string]struct {
 		capability *runtime.Capability
 		includes   []string
@@ -202,20 +204,20 @@ func TestContainerCapabilities(t *testing.T) {
 			capability: &runtime.Capability{
 				AddCapabilities: []string{"ALL"},
 			},
-			includes: oci.GetAllCapabilities(),
+			includes: allCaps,
 		},
 		"should be able to drop all capabilities": {
 			capability: &runtime.Capability{
 				DropCapabilities: []string{"ALL"},
 			},
-			excludes: oci.GetAllCapabilities(),
+			excludes: allCaps,
 		},
 		"should be able to drop capabilities with add all": {
 			capability: &runtime.Capability{
 				AddCapabilities:  []string{"ALL"},
 				DropCapabilities: []string{"CHOWN"},
 			},
-			includes: util.SubtractStringSlice(oci.GetAllCapabilities(), "CAP_CHOWN"),
+			includes: util.SubtractStringSlice(allCaps, "CAP_CHOWN"),
 			excludes: []string{"CAP_CHOWN"},
 		},
 		"should be able to add capabilities with drop all": {
@@ -224,13 +226,14 @@ func TestContainerCapabilities(t *testing.T) {
 				DropCapabilities: []string{"ALL"},
 			},
 			includes: []string{"CAP_SYS_ADMIN"},
-			excludes: util.SubtractStringSlice(oci.GetAllCapabilities(), "CAP_SYS_ADMIN"),
+			excludes: util.SubtractStringSlice(allCaps, "CAP_SYS_ADMIN"),
 		},
 	} {
 		t.Logf("TestCase %q", desc)
 		containerConfig, sandboxConfig, imageConfig, specCheck := getCreateContainerTestData()
 		ociRuntime := config.Runtime{}
 		c := newTestCRIService()
+		c.allCaps = allCaps
 
 		containerConfig.Linux.SecurityContext.Capabilities = test.capability
 		spec, err := c.containerSpec(testID, testSandboxID, testPid, "", testContainerName, containerConfig, sandboxConfig, imageConfig, nil, ociRuntime)
